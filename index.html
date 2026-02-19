@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flora Tissues Inventory</title>
+<style>
+:root{--green:#0b6b57;--green-700:#0a5c4b;--green-900:#073b30;--bg:#f5f7fa;--text:#0f172a;--muted:#6b7280;--card:#ffffff;--border:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Segoe UI,Arial,sans-serif}
+.topbar{background:var(--green);color:#fff;padding:24px}
+.topbar h1{margin:0;font-size:18px;text-align:center}
+.hero{margin:16px auto 0;max-width:1100px;background:var(--green-700);border-radius:12px;padding:20px;color:#cfeee7;display:flex;align-items:center;justify-content:space-between}
+.hero .shift{font-size:12px;letter-spacing:.4px;text-transform:uppercase;background:rgba(255,255,255,.08);padding:6px 10px;border-radius:999px}
+.hero .units{font-size:40px;color:#fff;margin:0 16px}
+.tabs{display:flex;gap:8px}
+.tab{background:rgba(255,255,255,.08);color:#d8efe9;border:1px solid rgba(255,255,255,.16);padding:8px 14px;border-radius:999px;cursor:pointer}
+.tab.active{background:#fff;color:var(--green-900)}
+.finish-shift{margin-left:8px;background:#0f172a;color:#fff;border:0;padding:10px 14px;border-radius:999px;cursor:pointer}
+.container{max-width:1100px;margin:16px auto;padding:0 16px 32px}
+.layout{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card h2{margin:0 0 10px;font-size:16px}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid var(--border);padding:10px 8px;font-size:14px;text-align:left;vertical-align:middle}
+.badge{font-size:12px;color:#0f172a;background:#eef2ff;border:1px solid #e5e7eb;padding:3px 8px;border-radius:999px}
+.muted{color:var(--muted);font-size:12px}
+.posting-tabs{display:flex;border-bottom:1px solid var(--border);margin:-16px -16px 16px}
+.posting-tabs button{flex:1;padding:12px;border:0;background:transparent;cursor:pointer}
+.posting-tabs button.active{border-bottom:3px solid var(--green);color:var(--green)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+label{font-size:12px;color:#4b5563;display:block;margin-bottom:6px}
+select,input{padding:10px;border:1px solid var(--border);border-radius:8px;min-width:180px;background:#fff}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:10px;border:1px solid var(--border);background:#fff;border-radius:999px;cursor:pointer}
+.seg button.active{background:var(--green);border-color:var(--green);color:#fff}
+.primary{padding:12px 14px;border:0;border-radius:10px;background:var(--green);color:#fff;cursor:pointer;width:100%}
+.primary.dark{background:#0f172a}
+.list{margin-top:12px}
+.list table{width:100%;border-collapse:collapse}
+.list th,.list td{border-bottom:1px solid var(--border);padding:8px 6px;font-size:13px;text-align:left}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Flora Tissues Inventory</h1>
+    <div class="hero">
+      <div class="shift" id="shiftLabel"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="units" id="totalUnits">0</div>
+        <div>Stock Units<br><span class="muted">Live warehouse snapshot</span></div>
+      </div>
+      <div class="tabs" id="topTabs">
+        <div class="tab active" data-page="warehouse">Warehouse</div>
+        <div class="tab" data-page="dock">Dock Journal</div>
+        <div class="tab" data-page="history">History</div>
+        <button class="finish-shift" id="finishShiftBtn">Finish Shift</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="layout" id="pageWarehouse">
+      <div class="card">
+        <h2>Inventory Breakdown</h2>
+        <table class="table" id="invTable">
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th>Configuration</th>
+              <th>On‑Hand Quantities (PLT + LSE)</th>
+              <th>Total Units</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="posting-tabs">
+          <button class="active" id="tabPosting">Stock Posting</button>
+          <button id="tabVerify">Verify Counts</button>
+        </div>
+        <div id="postingPanel">
+          <div class="row">
+            <div>
+              <label>Choose Item</label>
+              <select id="chooseItem"><option value="">-- Choose Item --</option></select>
+            </div>
+          </div>
+          <div class="row">
+            <div style="flex:1">
+              <label>Movement</label>
+              <div class="seg">
+                <button id="btnRestock" class="active">Restocking</button>
+                <button id="btnShip">Shipping Out</button>
+              </div>
+            </div>
+            <div style="flex:1">
+              <label>Measure</label>
+              <div class="seg">
+                <button id="btnPallet" class="active">Pallets</button>
+                <button id="btnLoose">Loose</button>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Quantity</label>
+              <input id="qty" type="number" min="1" step="1" placeholder="0">
+            </div>
+          </div>
+          <div class="row">
+            <button class="primary" id="addSubmission">+ Add to Submission List</button>
+          </div>
+          <div class="list">
+            <table>
+              <thead>
+                <tr><th>Item</th><th>SKU</th><th>Action</th><th>Qty</th><th>Units</th></tr>
+              </thead>
+              <tbody id="subList"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="verifyPanel" style="display:none">
+          <div class="row">
+            <div>
+              <label>Choose Item</label>
+              <select id="verifyItem"><option value="">-- Choose Item --</option></select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>My Pallets</label>
+              <input id="verifyMyPlt" type="number" min="0" step="1" placeholder="0">
+            </div>
+            <div>
+              <label>My Loose</label>
+              <input id="verifyMyLoose" type="number" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div class="row">
+            <div style="flex:1">
+              <label>Co‑worker Name</label>
+              <input id="verifyCoworker" type="text" placeholder="Co-worker Name">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Their Pallets</label>
+              <input id="verifyTheirPlt" type="number" min="0" step="1" placeholder="0">
+            </div>
+            <div>
+              <label>Their Loose</label>
+              <input id="verifyTheirLoose" type="number" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div class="row">
+            <button class="primary dark" id="logVerify">LOG VERIFICATION</button>
+          </div>
+          <div class="list">
+            <table>
+              <thead>
+                <tr><th>Item</th><th>SKU</th><th>My Units</th><th>Their Units</th><th>Δ</th><th>Co‑worker</th></tr>
+              </thead>
+              <tbody id="verifyList"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="pageDock" style="display:none">
+      <div class="card">
+        <h2>Dock Journal</h2>
+        <table class="table" id="dockTable">
+          <thead>
+            <tr><th>Date</th><th>Time</th><th>Event</th><th>Details</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="pageHistory" style="display:none">
+      <div class="card">
+        <h2>History</h2>
+        <table class="table" id="histTable">
+          <thead>
+            <tr><th>Date</th><th>Event</th><th>Notes</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+const items=[
+["FJ-M-RT","Flora Joy Mini (Rubber Tissue) 100s","20 Bags/PLT",20],
+["FS-DH-10P","Flora Smile Disposable Handkerchief (10 Packs)","50 Boxes/PLT",50],
+["FJ-DH-10P","Flora Joy Disposable Handkerchief (10 Packs)","50 Boxes/PLT",50],
+["FJ-TR-UW","Flora Joy Toilet Roll Unwrapped","20 Bags/PLT",20],
+["FJ-PT-B16","Flora Joy Multi-Purpose Paper Towel Blue (1×6)","40 Bags/PLT",40],
+["FS-TN-1P","Flora Smile Table Napkin","30 Bags/PLT",30],
+["FJ-TN-1P","Flora Joy Table Napkin","60 Bags/PLT",60],
+["FG-PT-2P","Flora Giant Multi-Purpose Paper Towel","40 Bags/PLT",40],
+["FS-PT-B19","Flora Smile Multi-Purpose Paper Towel Blue (1×9)","32 Bags/PLT",32],
+["FJ-FT-BX","Flora Joy Facial Tissue (Box)","20 Boxes/PLT",20],
+["AF-FT-BX","Africa Facial Tissue (Box)","20 Boxes/PLT",20],
+["PY-FT-BX","Papyrus Box Tissue","20 Boxes/PLT",20],
+["TR-FT-BX","Tradition Box Tissue","20 Boxes/PLT",20],
+["FJ-ML-100","Flora Joy Mini Love (100s)","40 Bags/PLT",40],
+["PY-TN-WP","Papyrus Table Napkin (With Promotion)","60 Bags/PLT",60],
+["TP-TN-PR","Tango Prime Table Napkin","60 Bags/PLT",60],
+["PY-TN-NP","Papyrus Table Napkin (No Promotion)","60 Bags/PLT",60],
+["FS-TR-UW","Toilet Roll Smile Unwrapped","20 Bags/PLT",20],
+["TW-PW-50","Tango Wash (Multi-Purpose Prime Wash)","50 Buckets/PLT",50],
+["WP-150G","Washing Powder 150g","50 Bags/PLT",50],
+["WP-400G","Washing Powder 400g","50 Bags/PLT",50],
+["WP-1KG","Washing Powder 1kg","50 Bags/PLT",50],
+["PT-TR-112","Public Toilet Roll 1×12","50 Bags/PLT",50],
+["HT-OR-106","Hand Towel Orange 1×6","40 Bags/PLT",40],
+["HT-OR-109","Hand Towel Orange 1×9","32 Bags/PLT",32],
+["PY-TR-20","Papyrus Toilet Roll","20 Bags/PLT",20],
+["WV-HT-40","Weva Hand Towel","40 Bags/PLT",40],
+["WV-TR-20","Weva Toilet Roll","20 Bags/PLT",20],
+["SB-BS-20","Special Bedsheet","20 Units/PLT",20],
+["VF-HT-20","Vfold Hand Towel","20 Bags/PLT",20],
+["FJ-DH-GT","Flora Joy DH Giant","50 Boxes/PLT",50],
+["HT-MLC-40","Hand Towel Melcom","40 Bags/PLT",40],
+["HT-JOY-112","Hand Towel Joy 1×12","32 Bags/PLT",32],
+["HT-JOY-106","Hand Towel Joy 1×6","64 Bags/PLT",64],
+["AF-30CM","30cm Aluminium Foil","50 Units/PLT",50],
+["FT-DLT-BX","FT Delta","20 Boxes/PLT",20],
+["MTC-FT-BX","MTC","20 Boxes/PLT",20],
+["MTV-FT-BX","MTV","20 Boxes/PLT",20]
+];
+const skuTo = new Map(items.map(i=>[i[0],{name:i[1],cfg:i[2],per:i[3]}]));
+const nameTo = new Map(items.map(i=>[i[1].toLowerCase(),i[0]]));
+const stock = new Map(items.map(i=>[i[0],0]));
+const subList = [];
+const verifyLog = [];
+const dockJournal=[];const historyLog=[];
+function renderDock(){const tb=document.querySelector("#dockTable tbody");if(!tb)return;tb.innerHTML="";for(const e of dockJournal){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.time}</td><td>${e.event}</td><td>${e.details||""}</td>`;tb.appendChild(tr)}}
+function renderHistory(){const tb=document.querySelector("#histTable tbody");if(!tb)return;tb.innerHTML="";for(const e of historyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.event}</td><td>${e.notes||""}</td>`;tb.appendChild(tr)}}
+function fmtOnHand(u,per){const plt=Math.floor(u/per);const loose=u%per;return `${plt} pallets  +  ${loose} loose`}
+function totalUnits(){let s=0;for(const v of stock.values())s+=v;return s}
+function renderHeader(){const el=document.getElementById("totalUnits");el.textContent=String(totalUnits());const d=new Date();const opts={weekday:"long",year:"numeric",month:"long",day:"numeric"};document.getElementById("shiftLabel").textContent=`Shift: ${d.toLocaleDateString(undefined,opts)}`}
+function renderInv(){const tb=document.querySelector("#invTable tbody");tb.innerHTML="";for(const [sku,info] of skuTo){const u=stock.get(sku)||0;const tr=document.createElement("tr");const td1=document.createElement("td");td1.innerHTML=`<div>${info.name}</div><div class="muted">SKU · ${sku}</div>`;const td2=document.createElement("td");td2.innerHTML=`<span class="badge">${info.cfg}</span>`;const td3=document.createElement("td");td3.textContent=fmtOnHand(u,info.per);const td4=document.createElement("td");td4.textContent=String(u);tr.append(td1,td2,td3,td4);tb.appendChild(tr)}}
+function fillSelects(){const sel=document.getElementById("chooseItem");const ver=document.getElementById("verifyItem");for(const [sku,info] of skuTo){const o=document.createElement("option");o.value=sku;o.textContent=info.name;const o2=o.cloneNode(true);sel.appendChild(o);ver.appendChild(o2)}}
+function applyMovement(sku,action,units){const cur=stock.get(sku)||0;if(action==="out"){if(units>cur){alert(`Removal exceeds current stock (${cur})`);return false}stock.set(sku,cur-units)}else stock.set(sku,cur+units);return true}
+function addSubmissionRow(entry){const tb=document.getElementById("subList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.action==="in"?"Restocking":"Shipping Out"}</td><td>${entry.qtyLabel}</td><td>${entry.units}</td>`;tb.prepend(tr)}
+function addVerifyRow(entry){const tb=document.getElementById("verifyList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.myUnits}</td><td>${entry.theirUnits}</td><td>${entry.diff}</td><td>${entry.coworker||""}</td>`;tb.prepend(tr)}
+document.getElementById("btnRestock").addEventListener("click",()=>{document.getElementById("btnRestock").classList.add("active");document.getElementById("btnShip").classList.remove("active")});
+document.getElementById("btnShip").addEventListener("click",()=>{document.getElementById("btnShip").classList.add("active");document.getElementById("btnRestock").classList.remove("active")});
+document.getElementById("btnPallet").addEventListener("click",()=>{document.getElementById("btnPallet").classList.add("active");document.getElementById("btnLoose").classList.remove("active")});
+document.getElementById("btnLoose").addEventListener("click",()=>{document.getElementById("btnLoose").classList.add("active");document.getElementById("btnPallet").classList.remove("active")});
+document.getElementById("addSubmission").addEventListener("click",()=>{const sku=document.getElementById("chooseItem").value;if(!sku){alert("Choose an item");return}const info=skuTo.get(sku);const isRestock=document.getElementById("btnRestock").classList.contains("active");const isPallet=document.getElementById("btnPallet").classList.contains("active");const qty=parseInt(document.getElementById("qty").value,10);if(!Number.isInteger(qty)||qty<=0){alert("Enter a positive quantity");return}const units=isPallet?qty*info.per:qty;const ok=applyMovement(sku,isRestock?"in":"out",units);if(!ok)return;const entry={sku,name:info.name,action:isRestock?"in":"out",qtyLabel:isPallet?`${qty} pallets`:`${qty} loose`,units};subList.push(entry);addSubmissionRow(entry);renderInv();renderHeader()});
+document.getElementById("tabPosting").addEventListener("click",()=>{document.getElementById("tabPosting").classList.add("active");document.getElementById("tabVerify").classList.remove("active");document.getElementById("postingPanel").style.display="block";document.getElementById("verifyPanel").style.display="none"});
+document.getElementById("tabVerify").addEventListener("click",()=>{document.getElementById("tabVerify").classList.add("active");document.getElementById("tabPosting").classList.remove("active");document.getElementById("postingPanel").style.display="none";document.getElementById("verifyPanel").style.display="block"});
+document.getElementById("logVerify").addEventListener("click",()=>{const sku=document.getElementById("verifyItem").value;if(!sku){alert("Choose an item");return}const info=skuTo.get(sku);const mp=parseInt(document.getElementById("verifyMyPlt").value,10)||0;const ml=parseInt(document.getElementById("verifyMyLoose").value,10)||0;const tp=parseInt(document.getElementById("verifyTheirPlt").value,10)||0;const tl=parseInt(document.getElementById("verifyTheirLoose").value,10)||0;const coworker=(document.getElementById("verifyCoworker").value||"").trim();if(mp<0||ml<0||tp<0||tl<0){alert("Counts must be >= 0");return}const myUnits=mp*info.per+ml;const theirUnits=tp*info.per+tl;const diff=theirUnits-myUnits;const entry={sku,name:info.name,myUnits,theirUnits,diff,coworker};verifyLog.push(entry);addVerifyRow(entry)});
+document.getElementById("finishShiftBtn").addEventListener("click",()=>{const d=new Date();const date=d.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});const time=d.toLocaleTimeString();let totalIn=0,totalOut=0;const bySku=new Map();for(const e of subList){const rec=bySku.get(e.sku)||{name:e.name,in:0,out:0};if(e.action==="in"){rec.in+=e.units;totalIn+=e.units}else{rec.out+=e.units;totalOut+=e.units}bySku.set(e.sku,rec)}const lines=[];for(const [sku,rec] of bySku){const net=rec.in-rec.out;lines.push(`${sku}: +${rec.in} / -${rec.out} = ${net} (${rec.name})`)}const summary=`Totals — In ${totalIn} | Out ${totalOut} | Net ${totalIn-totalOut}`;const details=lines.length?(`Items: `+lines.join('; ')+`. `+summary):summary;dockJournal.unshift({date,time,event:"Shift Finished",details});historyLog.unshift({date,event:"Shift Finished",notes:summary});renderDock();renderHistory()});
+document.getElementById("topTabs").addEventListener("click",e=>{const t=e.target;if(!t.classList.contains("tab"))return;for(const el of document.querySelectorAll("#topTabs .tab"))el.classList.remove("active");t.classList.add("active");const page=t.getAttribute("data-page");document.getElementById("pageWarehouse").style.display=page==="warehouse"?"grid":"none";document.getElementById("pageDock").style.display=page==="dock"?"block":"none";document.getElementById("pageHistory").style.display=page==="history"?"block":"none"});
+renderHeader();renderInv();fillSelects();renderDock();renderHistory();
+</script>
+</body>
+</html>
