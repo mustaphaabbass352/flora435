@@ -187,5 +187,10 @@ if ($Commands -and $Commands.Count -gt 0) {
         if ($line -and $line.Trim().ToUpper() -eq "EXIT") { break }
         Process-Line -line $line
     }
+{cd "C:\Users\HP\FLORA INVENTORY"
+git add index.html flora435/index.html
+git commit -m "Update app with saving + export/import"
+git push
 }
+
 
