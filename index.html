@@ -307,7 +307,7 @@ function loadState(){
 }
 
 function renderDock(){const tb=document.querySelector("#dockTable tbody");if(!tb)return;tb.innerHTML="";for(const e of dockJournal){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.time}</td><td>${e.event}</td><td>${e.details||""}</td>`;tb.appendChild(tr)}}
-function renderHistory(){const tb=document.querySelector("#histTable tbody");if(!tb)return;tb.innerHTML="";for(const e of historyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.event}</td><td>${e.notes||""}</td>`;tb.appendChild(tr)}
+function renderHistory(){const tb=document.querySelector("#histTable tbody");if(!tb)return;tb.innerHTML="";for(const e of historyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.event}</td><td>${e.notes||""}</td>`;tb.appendChild(tr)}}
 function fmtOnHand(u,per){const plt=Math.floor(u/per);const loose=u%per;return `${plt} pallets  +  ${loose} loose`}
 function totalUnits(){let s=0;for(const v of stock.values())s+=v;return s}
 function renderHeader(){const el=document.getElementById("totalUnits");el.textContent=String(totalUnits());const d=new Date();const opts={weekday:"long",year:"numeric",month:"long",day:"numeric"};document.getElementById("shiftLabel").textContent=`Shift: ${d.toLocaleDateString(undefined,opts)}`}
@@ -317,7 +317,7 @@ function applyMovement(sku,action,units){const cur=stock.get(sku)||0;if(action==
 function addSubmissionRow(entry){const tb=document.getElementById("subList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.action==="in"?"Restocking":"Shipping Out"}</td><td>${entry.qtyLabel}</td><td>${entry.units}</td>`;tb.prepend(tr)}
 function addVerifyRow(entry){const tb=document.getElementById("verifyList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.myUnits}</td><td>${entry.theirUnits}</td><td>${entry.diff}</td><td>${entry.coworker||""}</td>`;tb.prepend(tr)}
 function renderSubList(){const tb=document.getElementById("subList");if(!tb)return;tb.innerHTML="";for(const e of subList){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.name}</td><td>${e.sku}</td><td>${e.action==="in"?"Restocking":"Shipping Out"}</td><td>${e.qtyLabel}</td><td>${e.units}</td>`;tb.appendChild(tr)}}
-function renderVerifyList(){const tb=document.getElementById("verifyList");if(!tb)return;tb.innerHTML="";for(const e of verifyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.name}</td><td>${e.sku}</td><td>${e.myUnits}</td><td>${e.theirUnits}</td><td>${e.diff}</td><td>${e.coworker||""}</td>`;tb.appendChild(tr)}
+function renderVerifyList(){const tb=document.getElementById("verifyList");if(!tb)return;tb.innerHTML="";for(const e of verifyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.name}</td><td>${e.sku}</td><td>${e.myUnits}</td><td>${e.theirUnits}</td><td>${e.diff}</td><td>${e.coworker||""}</td>`;tb.appendChild(tr)}}
 
 document.getElementById("btnRestock").addEventListener("click",()=>{document.getElementById("btnRestock").classList.add("active");document.getElementById("btnShip").classList.remove("active")});
 document.getElementById("btnShip").addEventListener("click",()=>{document.getElementById("btnShip").classList.add("active");document.getElementById("btnRestock").classList.remove("active")});
