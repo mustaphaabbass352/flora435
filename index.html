@@ -168,6 +168,7 @@ select,input{padding:10px;border:1px solid var(--border);border-radius:8px;min-w
         </div>
       </div>
     </div>
+
     <div id="pageDock" style="display:none">
       <div class="card">
         <h2>Dock Journal</h2>
@@ -179,15 +180,48 @@ select,input{padding:10px;border:1px solid var(--border);border-radius:8px;min-w
         </table>
       </div>
     </div>
+
     <div id="pageHistory" style="display:none">
       <div class="card">
         <h2>History</h2>
+        <div class="row">
+          <button class="primary" id="exportBtnTop" style="width:auto">Export Data</button>
+          <button class="primary" id="importBtnTop" style="width:auto;background:#1f2937">Import Data</button>
+          <input type="file" id="importFileTop" accept="application/json" style="display:none">
+          <button class="primary" id="resetBtnTop" style="width:auto;background:#b91c1c">Reset Data</button>
+        </div>
         <table class="table" id="histTable">
           <thead>
             <tr><th>Date</th><th>Event</th><th>Notes</th></tr>
           </thead>
           <tbody></tbody>
         </table>
+      </div>
+
+      <div class="card">
+        <h2>Data</h2>
+        <div class="row">
+          <button class="primary" id="exportBtn" style="width:auto">Export Data</button>
+          <button class="primary" id="importBtn" style="width:auto;background:#1f2937">Import Data</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none">
+          <button class="primary" id="resetBtn" style="width:auto;background:#b91c1c">Reset Data</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1">
+            <label>GitHub Token (gist scope)</label>
+            <input type="password" id="ghToken" placeholder="ghp_...">
+          </div>
+          <div style="flex:1">
+            <label>Gist ID</label>
+            <input type="text" id="gistId" placeholder="Leave empty to create">
+          </div>
+        </div>
+        <div class="row">
+          <button class="primary" id="createGistBtn" style="width:auto">Create Private Gist</button>
+          <button class="primary" id="uploadGistBtn" style="width:auto">Upload to Gist</button>
+          <button class="primary" id="downloadGistBtn" style="width:auto">Download from Gist</button>
+          <button class="primary" id="clearGhBtn" style="width:auto;background:#b45309">Clear Token</button>
+        </div>
       </div>
     </div>
   </div>
@@ -233,12 +267,33 @@ const items=[
 ["MTC-FT-BX","MTC","20 Boxes/PLT",20],
 ["MTV-FT-BX","MTV","20 Boxes/PLT",20]
 ];
+
 const skuTo = new Map(items.map(i=>[i[0],{name:i[1],cfg:i[2],per:i[3]}]));
 const nameTo = new Map(items.map(i=>[i[1].toLowerCase(),i[0]]));
 const stock = new Map(items.map(i=>[i[0],0]));
 const subList = [];
 const verifyLog = [];
 const dockJournal=[];const historyLog=[];
+const LS_KEY="floraInv:v1";
+let _saveWarned=false;
+
+function saveState(){
+  const s={stock:Object.fromEntries(stock),subList,verifyLog,dockJournal,historyLog};
+  try{localStorage.setItem(LS_KEY,JSON.stringify(s))}
+  catch(e){if(!_saveWarned){_saveWarned=true;alert("Saving to browser storage failed. Check browser settings or use non-private mode.");}}
+}
+function loadState(){
+  const raw=localStorage.getItem(LS_KEY); if(!raw) return;
+  try{
+    const s=JSON.parse(raw)||{};
+    if(s.stock){for(const [sku,val] of Object.entries(s.stock)){if(stock.has(sku))stock.set(sku,Number(val)||0)}}
+    if(Array.isArray(s.subList)) subList.splice(0,subList.length,...s.subList);
+    if(Array.isArray(s.verifyLog)) verifyLog.splice(0,verifyLog.length,...s.verifyLog);
+    if(Array.isArray(s.dockJournal)) dockJournal.splice(0,0,...s.dockJournal);
+    if(Array.isArray(s.historyLog)) historyLog.splice(0,0,...s.historyLog);
+  }catch(e){}
+}
+
 function renderDock(){const tb=document.querySelector("#dockTable tbody");if(!tb)return;tb.innerHTML="";for(const e of dockJournal){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.time}</td><td>${e.event}</td><td>${e.details||""}</td>`;tb.appendChild(tr)}}
 function renderHistory(){const tb=document.querySelector("#histTable tbody");if(!tb)return;tb.innerHTML="";for(const e of historyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.date}</td><td>${e.event}</td><td>${e.notes||""}</td>`;tb.appendChild(tr)}}
 function fmtOnHand(u,per){const plt=Math.floor(u/per);const loose=u%per;return `${plt} pallets  +  ${loose} loose`}
@@ -249,17 +304,93 @@ function fillSelects(){const sel=document.getElementById("chooseItem");const ver
 function applyMovement(sku,action,units){const cur=stock.get(sku)||0;if(action==="out"){if(units>cur){alert(`Removal exceeds current stock (${cur})`);return false}stock.set(sku,cur-units)}else stock.set(sku,cur+units);return true}
 function addSubmissionRow(entry){const tb=document.getElementById("subList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.action==="in"?"Restocking":"Shipping Out"}</td><td>${entry.qtyLabel}</td><td>${entry.units}</td>`;tb.prepend(tr)}
 function addVerifyRow(entry){const tb=document.getElementById("verifyList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.myUnits}</td><td>${entry.theirUnits}</td><td>${entry.diff}</td><td>${entry.coworker||""}</td>`;tb.prepend(tr)}
+function renderSubList(){const tb=document.getElementById("subList");if(!tb)return;tb.innerHTML="";for(const e of subList){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.name}</td><td>${e.sku}</td><td>${e.action==="in"?"Restocking":"Shipping Out"}</td><td>${e.qtyLabel}</td><td>${e.units}</td>`;tb.appendChild(tr)}}
+function renderVerifyList(){const tb=document.getElementById("verifyList");if(!tb)return;tb.innerHTML="";for(const e of verifyLog){const tr=document.createElement("tr");tr.innerHTML=`<td>${e.name}</td><td>${e.sku}</td><td>${e.myUnits}</td><td>${e.theirUnits}</td><td>${e.diff}</td><td>${e.coworker||""}</td>`;tb.appendChild(tr)}}
+
 document.getElementById("btnRestock").addEventListener("click",()=>{document.getElementById("btnRestock").classList.add("active");document.getElementById("btnShip").classList.remove("active")});
 document.getElementById("btnShip").addEventListener("click",()=>{document.getElementById("btnShip").classList.add("active");document.getElementById("btnRestock").classList.remove("active")});
 document.getElementById("btnPallet").addEventListener("click",()=>{document.getElementById("btnPallet").classList.add("active");document.getElementById("btnLoose").classList.remove("active")});
 document.getElementById("btnLoose").addEventListener("click",()=>{document.getElementById("btnLoose").classList.add("active");document.getElementById("btnPallet").classList.remove("active")});
-document.getElementById("addSubmission").addEventListener("click",()=>{const sku=document.getElementById("chooseItem").value;if(!sku){alert("Choose an item");return}const info=skuTo.get(sku);const isRestock=document.getElementById("btnRestock").classList.contains("active");const isPallet=document.getElementById("btnPallet").classList.contains("active");const qty=parseInt(document.getElementById("qty").value,10);if(!Number.isInteger(qty)||qty<=0){alert("Enter a positive quantity");return}const units=isPallet?qty*info.per:qty;const ok=applyMovement(sku,isRestock?"in":"out",units);if(!ok)return;const entry={sku,name:info.name,action:isRestock?"in":"out",qtyLabel:isPallet?`${qty} pallets`:`${qty} loose`,units};subList.push(entry);addSubmissionRow(entry);renderInv();renderHeader()});
+
+document.getElementById("addSubmission").addEventListener("click",()=>{
+  const sku=document.getElementById("chooseItem").value;if(!sku){alert("Choose an item");return}
+  const info=skuTo.get(sku);
+  const isRestock=document.getElementById("btnRestock").classList.contains("active");
+  const isPallet=document.getElementById("btnPallet").classList.contains("active");
+  const qty=parseInt(document.getElementById("qty").value,10);
+  if(!Number.isInteger(qty)||qty<=0){alert("Enter a positive quantity");return}
+  const units=isPallet?qty*info.per:qty;
+  const ok=applyMovement(sku,isRestock?"in":"out",units);if(!ok)return;
+  const entry={sku,name:info.name,action:isRestock?"in":"out",qtyLabel:isPallet?`${qty} pallets`:`${qty} loose`,units};
+  subList.push(entry);addSubmissionRow(entry);renderInv();renderHeader();saveState();
+});
+
 document.getElementById("tabPosting").addEventListener("click",()=>{document.getElementById("tabPosting").classList.add("active");document.getElementById("tabVerify").classList.remove("active");document.getElementById("postingPanel").style.display="block";document.getElementById("verifyPanel").style.display="none"});
 document.getElementById("tabVerify").addEventListener("click",()=>{document.getElementById("tabVerify").classList.add("active");document.getElementById("tabPosting").classList.remove("active");document.getElementById("postingPanel").style.display="none";document.getElementById("verifyPanel").style.display="block"});
-document.getElementById("logVerify").addEventListener("click",()=>{const sku=document.getElementById("verifyItem").value;if(!sku){alert("Choose an item");return}const info=skuTo.get(sku);const mp=parseInt(document.getElementById("verifyMyPlt").value,10)||0;const ml=parseInt(document.getElementById("verifyMyLoose").value,10)||0;const tp=parseInt(document.getElementById("verifyTheirPlt").value,10)||0;const tl=parseInt(document.getElementById("verifyTheirLoose").value,10)||0;const coworker=(document.getElementById("verifyCoworker").value||"").trim();if(mp<0||ml<0||tp<0||tl<0){alert("Counts must be >= 0");return}const myUnits=mp*info.per+ml;const theirUnits=tp*info.per+tl;const diff=theirUnits-myUnits;const entry={sku,name:info.name,myUnits,theirUnits,diff,coworker};verifyLog.push(entry);addVerifyRow(entry)});
-document.getElementById("finishShiftBtn").addEventListener("click",()=>{const d=new Date();const date=d.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});const time=d.toLocaleTimeString();let totalIn=0,totalOut=0;const bySku=new Map();for(const e of subList){const rec=bySku.get(e.sku)||{name:e.name,in:0,out:0};if(e.action==="in"){rec.in+=e.units;totalIn+=e.units}else{rec.out+=e.units;totalOut+=e.units}bySku.set(e.sku,rec)}const lines=[];for(const [sku,rec] of bySku){const net=rec.in-rec.out;lines.push(`${sku}: +${rec.in} / -${rec.out} = ${net} (${rec.name})`)}const summary=`Totals — In ${totalIn} | Out ${totalOut} | Net ${totalIn-totalOut}`;const details=lines.length?(`Items: `+lines.join('; ')+`. `+summary):summary;dockJournal.unshift({date,time,event:"Shift Finished",details});historyLog.unshift({date,event:"Shift Finished",notes:summary});renderDock();renderHistory()});
+
+document.getElementById("logVerify").addEventListener("click",()=>{
+  const sku=document.getElementById("verifyItem").value;if(!sku){alert("Choose an item");return}
+  const info=skuTo.get(sku);
+  const mp=parseInt(document.getElementById("verifyMyPlt").value,10)||0;
+  const ml=parseInt(document.getElementById("verifyMyLoose").value,10)||0;
+  const tp=parseInt(document.getElementById("verifyTheirPlt").value,10)||0;
+  const tl=parseInt(document.getElementById("verifyTheirLoose").value,10)||0;
+  const coworker=(document.getElementById("verifyCoworker").value||"").trim();
+  if(mp<0||ml<0||tp<0||tl<0){alert("Counts must be >= 0");return}
+  const myUnits=mp*info.per+ml;const theirUnits=tp*info.per+tl;const diff=theirUnits-myUnits;
+  const entry={sku,name:info.name,myUnits,theirUnits,diff,coworker};
+  verifyLog.push(entry);addVerifyRow(entry);saveState();
+});
+
+document.getElementById("finishShiftBtn").addEventListener("click",()=>{
+  const d=new Date();
+  const date=d.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  const time=d.toLocaleTimeString();
+  let totalIn=0,totalOut=0;const bySku=new Map();
+  for(const e of subList){
+    const rec=bySku.get(e.sku)||{name:e.name,in:0,out:0};
+    if(e.action==="in"){rec.in+=e.units;totalIn+=e.units}else{rec.out+=e.units;totalOut+=e.units}
+    bySku.set(e.sku,rec)
+  }
+  const lines=[];for(const [sku,rec] of bySku){const net=rec.in-rec.out;lines.push(`${sku}: +${rec.in} / -${rec.out} = ${net} (${rec.name})`)}
+  const summary=`Totals — In ${totalIn} | Out ${totalOut} | Net ${totalIn-totalOut}`;
+  const details=lines.length?(`Items: `+lines.join('; ')+`. `+summary):summary;
+  dockJournal.unshift({date,time,event:"Shift Finished",details});
+  historyLog.unshift({date,event:"Shift Finished",notes:summary});
+  renderDock();renderHistory();saveState();
+});
+
+function getState(){return {stock:Object.fromEntries(stock),subList,verifyLog,dockJournal,historyLog}}
+
+document.getElementById("exportBtnTop").addEventListener("click",()=>{const data=getState();const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const a=document.createElement("a");const dt=new Date();const ts=dt.toISOString().slice(0,10);a.href=URL.createObjectURL(blob);a.download=`flora-inventory-${ts}.json`;a.click();URL.revokeObjectURL(a.href)});
+document.getElementById("importBtnTop").addEventListener("click",()=>document.getElementById("importFileTop").click());
+document.getElementById("importFileTop").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const s=JSON.parse(r.result);if(s.stock){for(const [sku,val] of Object.entries(s.stock)){if(stock.has(sku))stock.set(sku,Number(val)||0)}}subList.splice(0,subList.length,...(s.subList||[]));verifyLog.splice(0,verifyLog.length,...(s.verifyLog||[]));dockJournal.splice(0,0,...(s.dockJournal||[]));historyLog.splice(0,0,...(s.historyLog||[]));saveState();renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory();alert("Data imported")}catch(err){alert("Import failed: invalid file")}};r.readAsText(f);e.target.value=""});
+document.getElementById("resetBtnTop").addEventListener("click",()=>{if(!confirm("Clear all saved data on this device?"))return;for(const k of stock.keys())stock.set(k,0);subList.length=0;verifyLog.length=0;dockJournal.length=0;historyLog.length=0;localStorage.removeItem(LS_KEY);renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory()});
+
+document.getElementById("exportBtn").addEventListener("click",()=>{const data=getState();const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const a=document.createElement("a");const dt=new Date();const ts=dt.toISOString().slice(0,10);a.href=URL.createObjectURL(blob);a.download=`flora-inventory-${ts}.json`;a.click();URL.revokeObjectURL(a.href)});
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const s=JSON.parse(r.result);if(s.stock){for(const [sku,val] of Object.entries(s.stock)){if(stock.has(sku))stock.set(sku,Number(val)||0)}}subList.splice(0,subList.length,...(s.subList||[]));verifyLog.splice(0,verifyLog.length,...(s.verifyLog||[]));dockJournal.splice(0,0,...(s.dockJournal||[]));historyLog.splice(0,0,...(s.historyLog||[]));saveState();renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory();alert("Data imported")}catch(err){alert("Import failed: invalid file")}};r.readAsText(f);e.target.value=""});
+document.getElementById("resetBtn").addEventListener("click",()=>{if(!confirm("Clear all saved data on this device?"))return;for(const k of stock.keys())stock.set(k,0);subList.length=0;verifyLog.length=0;dockJournal.length=0;historyLog.length=0;localStorage.removeItem(LS_KEY);renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory()});
+
+const GIST_FILE="flora-inventory.json";
+function setGhToken(t){try{sessionStorage.setItem("floraInv:ghToken",t)}catch(_){}} 
+function getGhToken(){try{return sessionStorage.getItem("floraInv:ghToken")||""}catch(_){return ""}}
+function setGistId(id){try{localStorage.setItem("floraInv:gistId",id)}catch(_){}} 
+function getGistId(){try{return localStorage.getItem("floraInv:gistId")||""}catch(_){return ""}}
+function applyState(s){if(s.stock){for(const [sku,val] of Object.entries(s.stock)){if(stock.has(sku))stock.set(sku,Number(val)||0)}}subList.splice(0,subList.length,...(s.subList||[]));verifyLog.splice(0,verifyLog.length,...(s.verifyLog||[]));dockJournal.splice(0,0,...(s.dockJournal||[]));historyLog.splice(0,0,...(s.historyLog||[]));saveState();renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory()}
+function ghHeaders(tok){return {"Accept":"application/vnd.github+json","Authorization":`Bearer ${tok}`,"X-GitHub-Api-Version":"2022-11-28"}}
+document.getElementById("ghToken").value=getGhToken();
+document.getElementById("gistId").value=getGistId();
+document.getElementById("ghToken").addEventListener("input",e=>setGhToken(e.target.value.trim()));
+document.getElementById("gistId").addEventListener("input",e=>setGistId(e.target.value.trim()));
+document.getElementById("clearGhBtn").addEventListener("click",()=>{setGhToken("");document.getElementById("ghToken").value="";alert("Token cleared (only for this browser window).")});
+document.getElementById("createGistBtn").addEventListener("click",async()=>{const tok=getGhToken();if(!tok){alert("Enter a GitHub token with Gist access");return}try{const res=await fetch("https://api.github.com/gists",{method:"POST",headers:ghHeaders(tok),body:JSON.stringify({description:"Flora Inventory State",public:false,files:{[GIST_FILE]:{content:JSON.stringify(getState(),null,2)}}})});if(!res.ok){const t=await res.text();throw new Error(t)}const js=await res.json();const id=js.id;setGistId(id);document.getElementById("gistId").value=id;alert("Private gist created and initial data uploaded.")}catch(err){alert("Create gist failed")}})
+document.getElementById("uploadGistBtn").addEventListener("click",async()=>{const tok=getGhToken();const id=getGistId();if(!tok||!id){alert("Enter token and gist id first");return}try{const res=await fetch(`https://api.github.com/gists/${id}`,{method:"PATCH",headers:ghHeaders(tok),body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(getState(),null,2)}}})});if(!res.ok){const t=await res.text();throw new Error(t)}alert("Uploaded to gist")}catch(err){alert("Upload failed")}})
+document.getElementById("downloadGistBtn").addEventListener("click",async()=>{const tok=getGhToken();const id=getGistId();if(!tok||!id){alert("Enter token and gist id first");return}try{const res=await fetch(`https://api.github.com/gists/${id}`,{headers:ghHeaders(tok)});if(!res.ok){const t=await res.text();throw new Error(t)}const js=await res.json();const file=js.files && js.files[GIST_FILE];if(!file||!file.content){alert("File not found in gist");return}const s=JSON.parse(file.content);applyState(s);alert("Downloaded from gist")}catch(err){alert("Download failed")}})
+
 document.getElementById("topTabs").addEventListener("click",e=>{const t=e.target;if(!t.classList.contains("tab"))return;for(const el of document.querySelectorAll("#topTabs .tab"))el.classList.remove("active");t.classList.add("active");const page=t.getAttribute("data-page");document.getElementById("pageWarehouse").style.display=page==="warehouse"?"grid":"none";document.getElementById("pageDock").style.display=page==="dock"?"block":"none";document.getElementById("pageHistory").style.display=page==="history"?"block":"none"});
-renderHeader();renderInv();fillSelects();renderDock();renderHistory();
+window.addEventListener("beforeunload",saveState);
+fillSelects();loadState();renderInv();renderHeader();renderSubList();renderVerifyList();renderDock();renderHistory();
 </script>
 </body>
 </html>
