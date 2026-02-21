@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flora Tissues Inventory · v2</title>
+<title>Flora Tissues Inventory · v2.1</title>
 <style>
 :root{--green:#0b6b57;--green-700:#0a5c4b;--green-900:#073b30;--bg:#f5f7fa;--text:#0f172a;--muted:#6b7280;--card:#ffffff;--border:#e5e7eb}
 *{box-sizing:border-box}
@@ -211,6 +211,13 @@ select,input{padding:10px;border:1px solid var(--border);border-radius:8px;min-w
           <button class="primary dark" id="exportItemsBtn" style="width:auto">Export Items</button>
           <button class="primary" id="downloadHtmlBtn" style="width:auto;background:#334155">Download App HTML</button>
         </div>
+        <div class="row">
+          <div style="flex:1">
+            <label>Remove Item (by SKU)</label>
+            <select id="removeSku"><option value="">-- Choose Item --</option></select>
+          </div>
+          <button class="primary" id="removeItemBtn" style="width:auto;background:#b91c1c">Remove Item</button>
+        </div>
       </div>
 
       <div class="card">
@@ -305,7 +312,7 @@ function fmtOnHand(u,per){const plt=Math.floor(u/per);const loose=u%per;return `
 function totalUnits(){let s=0;for(const v of stock.values())s+=v;return s}
 function renderHeader(){const el=document.getElementById("totalUnits");el.textContent=String(totalUnits());const d=new Date();const opts={weekday:"long",year:"numeric",month:"long",day:"numeric"};document.getElementById("shiftLabel").textContent=`Shift: ${d.toLocaleDateString(undefined,opts)}`}
 function renderInv(){const tb=document.querySelector("#invTable tbody");tb.innerHTML="";for(const [sku,info] of skuTo){const u=stock.get(sku)||0;const tr=document.createElement("tr");const td1=document.createElement("td");td1.innerHTML=`<div>${info.name}</div><div class="muted">SKU · ${sku}</div>`;const td2=document.createElement("td");td2.innerHTML=`<span class="badge">${info.cfg}</span>`;const td3=document.createElement("td");td3.textContent=fmtOnHand(u,info.per);const td4=document.createElement("td");td4.textContent=String(u);tr.append(td1,td2,td3,td4);tb.appendChild(tr)}}
-function fillSelects(){const sel=document.getElementById("chooseItem");const ver=document.getElementById("verifyItem");sel.innerHTML='<option value="">-- Choose Item --</option>';ver.innerHTML='<option value="">-- Choose Item --</option>';for(const [sku,info] of skuTo){const o=document.createElement("option");o.value=sku;o.textContent=info.name;const o2=o.cloneNode(true);sel.appendChild(o);ver.appendChild(o2)}}
+function fillSelects(){const sel=document.getElementById(\"chooseItem\");const ver=document.getElementById(\"verifyItem\");const rm=document.getElementById(\"removeSku\");if(sel) sel.innerHTML='<option value=\"\">-- Choose Item --</option>';if(ver) ver.innerHTML='<option value=\"\">-- Choose Item --</option>';if(rm) rm.innerHTML='<option value=\"\">-- Choose Item --</option>';for(const [sku,info] of skuTo){const o=document.createElement(\"option\");o.value=sku;o.textContent=info.name;const o2=o.cloneNode(true);const o3=o.cloneNode(true);if(sel) sel.appendChild(o);if(ver) ver.appendChild(o2);if(rm) rm.appendChild(o3)}}
 function applyMovement(sku,action,units){const cur=stock.get(sku)||0;if(action==="out"){if(units>cur){alert(`Removal exceeds current stock (${cur})`);return false}stock.set(sku,cur-units)}else stock.set(sku,cur+units);return true}
 function addSubmissionRow(entry){const tb=document.getElementById("subList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.action==="in"?"Restocking":"Shipping Out"}</td><td>${entry.qtyLabel}</td><td>${entry.units}</td>`;tb.prepend(tr)}
 function addVerifyRow(entry){const tb=document.getElementById("verifyList");const tr=document.createElement("tr");tr.innerHTML=`<td>${entry.name}</td><td>${entry.sku}</td><td>${entry.myUnits}</td><td>${entry.theirUnits}</td><td>${entry.diff}</td><td>${entry.coworker||""}</td>`;tb.prepend(tr)}
@@ -409,6 +416,23 @@ document.getElementById("downloadHtmlBtn").addEventListener("click",()=>{
   a.download="index.html";
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("removeItemBtn").addEventListener("click",()=>{
+  const rm=document.getElementById("removeSku");
+  const sku=rm?rm.value:"";
+  if(!sku){alert("Choose an item to remove");return}
+  if(!confirm("Remove this item from the catalog?")) return;
+  const idx=items.findIndex(i=>i[0]===sku);
+  if(idx===-1){alert("Item not found");return}
+  items.splice(idx,1);
+  stock.delete(sku);
+  rebuildCatalog();
+  saveState();
+  fillSelects();
+  renderInv();
+  renderHeader();
+  alert("Item removed");
 });
 
 document.getElementById("topTabs").addEventListener("click",e=>{const t=e.target;if(!t.classList.contains("tab"))return;for(const el of document.querySelectorAll("#topTabs .tab"))el.classList.remove("active");t.classList.add("active");const page=t.getAttribute("data-page");document.getElementById("pageWarehouse").style.display=page==="warehouse"?"grid":"none";document.getElementById("pageDock").style.display=page==="dock"?"block":"none";document.getElementById("pageHistory").style.display=page==="history"?"block":"none"});
